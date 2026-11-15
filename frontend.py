@@ -6,24 +6,67 @@ from datetime import datetime
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Crypto Trader Pro", page_icon="⚡", layout="wide", initial_sidebar_state="expanded")
 
-# --- CSS PREMIUM (APENAS PARA CARDS E BOTÕES) ---
+# --- INJEÇÃO CSS GLOBAL (FORÇA O TEMA ESCURO EM TUDO) ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-    html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
     
+    /* Fontes Globais */
+    html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
+
+    /* FORÇANDO FUNDO ESCURO E TEXTOS CLAROS NO APP INTEIRO */
+    .stApp, [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
+        background-color: #050505 !important;
+        color: #E0E0E0 !important;
+    }
+    h1, h2, h3, h4, p, span, div, label {
+        color: #E0E0E0 !important;
+    }
+    h1 { color: #FF8C00 !important; font-weight: 800; font-size: 2rem !important; margin-bottom: 0px !important;}
+    
+    /* Esconder menus do Streamlit */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
-    header {visibility: hidden;}
     [data-testid="stSidebarNav"] {display: none;}
 
-    /* Sidebar Compacta */
-    [data-testid="stSidebar"] { min-width: 260px !important; max-width: 260px !important; }
+    /* SIDEBAR ESCURA */
+    [data-testid="stSidebar"] { 
+        background-color: #0c0c0c !important; 
+        border-right: 1px solid #222; 
+        min-width: 260px !important; 
+        max-width: 260px !important; 
+    }
     [data-testid="stSidebar"] .block-container { padding: 10px !important; }
     
-    /* Tags Laranjas da Sidebar */
-    span[data-baseweb="tag"] { background-color: #FF8C00 !important; color: #000 !important; border-radius: 4px; }
-    span[data-baseweb="tag"] span { color: #000 !important; font-weight: bold; }
+    /* CORRIGINDO O MENU SUSPENSO (DROPDOWN) - AGORA FICA ESCURO E LEGÍVEL */
+    div[data-baseweb="select"] > div {
+        background-color: #111 !important;
+        color: #FFF !important;
+        border: 1px solid #333 !important;
+    }
+    /* A lista que abre */
+    ul[data-testid="stSelectboxVirtualDropdown"], div[data-baseweb="popover"] > div > ul {
+        background-color: #111 !important;
+    }
+    /* Os itens da lista */
+    li[role="option"], div[data-baseweb="popover"] li {
+        background-color: #111 !important;
+        color: #E0E0E0 !important;
+    }
+    li[role="option"]:hover, div[data-baseweb="popover"] li:hover {
+        background-color: #FF8C00 !important;
+        color: #000 !important;
+    }
+    /* As tags (bolinhas com o nome da moeda) */
+    span[data-baseweb="tag"] { 
+        background-color: #FF8C00 !important; 
+        color: #000 !important; 
+        border-radius: 4px; 
+    }
+    span[data-baseweb="tag"] span { 
+        color: #000 !important; 
+        font-weight: bold; 
+    }
 
     /* Cards de Métricas */
     .metric-card { background: linear-gradient(145deg, #121212, #0a0a0a); border: 1px solid #222; border-radius: 10px; padding: 15px; text-align: center; }
@@ -39,10 +82,13 @@ st.markdown("""
     .coin-down { color: #E50914 !important; font-weight: 600; font-size: 13px;}
 
     /* Botões */
-    .stButton>button { background-color: #121212; color: #FF8C00; border: 1px solid #FF8C00; font-weight: 600; border-radius: 6px; font-size: 14px; transition: all 0.3s; }
-    .stButton>button:hover { background-color: #FF8C00; color: #000; box-shadow: 0 0 10px rgba(255,140,0,0.4); }
-    div[data-testid="stButton"] button[kind="primary"] { background: linear-gradient(90deg, #1DB954, #169c46); color: white; border: none; }
-    div[data-testid="stButton"] button[kind="secondary"] { background: linear-gradient(90deg, #E50914, #b80710); color: white; border: none; }
+    .stButton>button { background-color: #121212 !important; color: #FF8C00 !important; border: 1px solid #FF8C00 !important; font-weight: 600; border-radius: 6px; font-size: 14px; transition: all 0.3s; }
+    .stButton>button:hover { background-color: #FF8C00 !important; color: #000 !important; box-shadow: 0 0 10px rgba(255,140,0,0.4); }
+    
+    /* Botão Iniciar */
+    div[data-testid="stButton"] button[kind="primary"] { background: linear-gradient(90deg, #1DB954, #169c46) !important; color: white !important; border: none !important; }
+    /* Botão Emergência */
+    div[data-testid="stButton"] button[kind="secondary"] { background: linear-gradient(90deg, #E50914, #b80710) !important; color: white !important; border: none !important; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -56,12 +102,10 @@ opcoes_ativos = ["BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "XRPUSDT", "ADAUSDT
 mapa_moedas = {"BTCUSDT": "bitcoin", "ETHUSDT": "ethereum", "SOLUSDT": "solana", "BNBUSDT": "binancecoin", "XRPUSDT": "ripple", "ADAUSDT": "cardano", "DOGEUSDT": "dogecoin", "LINKUSDT": "chainlink", "AVAXUSDT": "avalanche-2", "LTCUSDT": "litecoin", "DOTUSDT": "polkadot", "MATICUSDT": "matic-network", "SHIBUSDT": "shiba-inu", "TRXUSDT": "tron", "UNIUSDT": "uniswap", "ATOMUSDT": "cosmos", "ETCUSDT": "ethereum-classic", "XLMUSDT": "stellar", "BCHUSDT": "bitcoin-cash", "NEARUSDT": "near"}
 mapa_inverso = {"bitcoin": "BTC", "ethereum": "ETH", "solana": "SOL", "binancecoin": "BNB", "ripple": "XRP", "cardano": "ADA", "dogecoin": "DOGE", "chainlink": "LINK", "avalanche-2": "AVAX", "litecoin": "LTC", "polkadot": "DOT", "matic-network": "MATIC", "shiba-inu": "SHIB", "tron": "TRX", "uniswap": "UNI", "cosmos": "ATOM", "ethereum-classic": "ETC", "stellar": "XLM", "bitcoin-cash": "BCH", "near": "NEAR"}
 
-# --- SISTEMA DE PREÇOS COM DUPLA CAMADA ---
 @st.cache_data(ttl=15)
 def get_market_data(coin_ids):
     if not coin_ids: return {}
     result = {}
-    # TENTATIVA 1: CoinGecko
     try:
         ids = ",".join(coin_ids)
         url = f"https://api.coingecko.com/api/v3/simple/price?ids={ids}&vs_currencies=usd&include_24hr_change=true"
@@ -73,7 +117,6 @@ def get_market_data(coin_ids):
             if result: return result
     except Exception: pass
         
-    # TENTATIVA 2: CryptoCompare
     try:
         syms = [mapa_inverso.get(c, "") for c in coin_ids if c in mapa_inverso]
         if syms:
@@ -159,8 +202,9 @@ tempo_atualizacao = "15s" if st.session_state.auto_update else None
 def render_market_prices(ativos):
     col_title, col_btn = st.columns([4, 1])
     with col_title:
-        st.markdown(f"<h4 style='margin-bottom:0;'>Mercado em Tempo Real <span style='font-size: 12px; color: #888; font-weight: 400;'>Atualizado às {datetime.now().strftime('%H:%M:%S')}</span></h4>", unsafe_allow_html=True)
+        st.markdown(f"<h4 style='margin-bottom:0; color:#E0E0E0 !important;'>Mercado em Tempo Real <span style='font-size: 12px; color: #888; font-weight: 400;'>Atualizado às {datetime.now().strftime('%H:%M:%S')}</span></h4>", unsafe_allow_html=True)
     with col_btn:
+        # Voltando o botão para o estilo escuro laranja (sem o type='secondary' que o deixava vermelho)
         if st.button("🔄 Forçar Atualização", use_container_width=True):
             st.cache_data.clear()
             st.rerun(scope="fragment") 
