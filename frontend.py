@@ -6,7 +6,7 @@ from datetime import datetime
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Crypto Trader Pro", page_icon="⚡", layout="wide", initial_sidebar_state="expanded")
 
-# --- INJEÇÃO CSS GLOBAL E CORREÇÃO DO MENU MULTISELECT ---
+# --- INJEÇÃO CSS CIRÚRGICA ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
@@ -34,16 +34,16 @@ st.markdown("""
     }
     
     /* ================================================================= */
-    /* CORREÇÃO CIRÚRGICA DO MENU DE ATIVOS (MULTISELECT) */
+    /* CORREÇÃO DEFINITIVA DO MENU DE ATIVOS (MULTISELECT) */
     /* ================================================================= */
     
-    /* 1. A caixa de fundo onde ficam as tags selecionadas */
-    div[data-testid="stMultiSelect"] > div > div {
+    /* 1. Caixa que segura as tags selecionadas */
+    div[data-testid="stMultiSelect"] > div {
         background-color: #111 !important;
         border: 1px solid #333 !important;
     }
 
-    /* 2. As tags (ex: BTCUSDT) - Laranja com texto preto */
+    /* 2. As tags (ex: BTCUSDT) - Forçando Laranja e texto Preto */
     span[data-baseweb="tag"] {
         background-color: #FF8C00 !important;
         color: #000000 !important;
@@ -54,35 +54,36 @@ st.markdown("""
         font-weight: bold !important;
     }
     span[data-baseweb="tag"] svg {
-        fill: #000000 !important; /* O 'X' de deletar fica preto */
+        fill: #000000 !important; 
     }
 
-    /* 3. O menu que abre (Popover) - Fundo escuro */
-    div[data-baseweb="popover"] {
-        background-color: #111 !important;
-        border: 1px solid #333 !important;
-        border-radius: 6px !important;
-    }
-    div[data-baseweb="popover"] > div {
-        background-color: #111 !important;
-    }
-
-    /* 4. A lista de opções (Select all, BNBUSDT, etc) */
-    ul[data-testid="stSelectboxVirtualDropdown"], 
+    /* 3. O Menu Pop-up (Onde ficam as opções) */
+    div[data-baseweb="popover"], 
+    div[data-baseweb="popover"] > div,
     div[data-baseweb="popover"] ul {
         background-color: #111 !important;
     }
+
+    /* 4. As opções de escolha (Select all, BNBUSDT, etc) */
     div[data-baseweb="popover"] li {
         background-color: #111 !important;
         color: #E0E0E0 !important;
     }
+    
+    /* 5. O texto dentro da opção (evitando que fique branco no branco) */
+    div[data-baseweb="popover"] li div, 
+    div[data-baseweb="popover"] li span {
+        color: #E0E0E0 !important;
+    }
 
-    /* 5. Efeito ao passar o mouse nas opções - Fica laranja */
+    /* 6. Efeito ao passar o mouse nas opções - Fica Laranja com texto preto */
     div[data-baseweb="popover"] li:hover {
         background-color: #FF8C00 !important;
     }
-    div[data-baseweb="popover"] li:hover div {
+    div[data-baseweb="popover"] li:hover div, 
+    div[data-baseweb="popover"] li:hover span {
         color: #000000 !important;
+        font-weight: bold;
     }
     /* ================================================================= */
 
@@ -99,12 +100,25 @@ st.markdown("""
     .coin-up { color: #1DB954 !important; font-weight: 600; font-size: 13px;}
     .coin-down { color: #E50914 !important; font-weight: 600; font-size: 13px;}
 
-    /* Botões */
-    .stButton>button { background-color: #121212 !important; color: #FF8C00 !important; border: 1px solid #FF8C00 !important; font-weight: 600; border-radius: 6px; font-size: 14px; transition: all 0.3s; }
-    .stButton>button:hover { background-color: #FF8C00 !important; color: #000 !important; box-shadow: 0 0 10px rgba(255,140,0,0.4); }
+    /* Botões - Correção do botão vermelho indesejado */
+    .stButton>button { 
+        background-color: #121212 !important; 
+        color: #FF8C00 !important; 
+        border: 1px solid #FF8C00 !important; 
+        font-weight: 600; border-radius: 6px; font-size: 14px; 
+    }
+    .stButton>button:hover { 
+        background-color: #FF8C00 !important; 
+        color: #000 !important; 
+        box-shadow: 0 0 10px rgba(255,140,0,0.4); 
+    }
     
-    div[data-testid="stButton"] button[kind="primary"] { background: linear-gradient(90deg, #1DB954, #169c46) !important; color: white !important; border: none !important; }
-    div[data-testid="stButton"] button[kind="secondary"] { background: linear-gradient(90deg, #E50914, #b80710) !important; color: white !important; border: none !important; }
+    /* Força botões primários a serem verdes */
+    div[data-testid="stButton"] button[kind="primary"] { 
+        background: linear-gradient(90deg, #1DB954, #169c46) !important; 
+        color: white !important; 
+        border: none !important; 
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -192,7 +206,7 @@ with col_btn_start:
     else:
         st.button("🟢 SESSÃO ATIVA", type="primary", disabled=True, use_container_width=True)
 with col_btn_stop:
-    if st.button("🚨 EMERGÊNCIA", type="secondary", use_container_width=True):
+    if st.button("🚨 EMERGÊNCIA", use_container_width=True):
         st.session_state.robo_rodando = False
         st.rerun()
 with col_info:
@@ -225,7 +239,7 @@ def render_market_prices(ativos):
             st.rerun(scope="fragment") 
             
     if not ativos:
-        st.info("Nenhum ativo selecionado.")
+        st.markdown("<div style='background-color: #111; border: 1px solid #333; border-radius: 6px; padding: 15px; color: #888;'>Nenhum ativo selecionado.</div>", unsafe_allow_html=True)
         return
 
     ids_para_buscar = [mapa_moedas[a] for a in ativos if a in mapa_moedas]
