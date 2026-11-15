@@ -21,23 +21,26 @@ st.markdown("""
     h1, h2, h3, h4, p, span, div { color: #E0E0E0 !important; }
     h1 { color: #FF8C00 !important; font-weight: 800; font-size: 2rem !important; margin-bottom: 0px !important;}
     
-    /* Sidebar Super Compacta */
+    /* Sidebar Compacta */
     [data-testid="stSidebar"] { background-color: #0c0c0c; border-right: 1px solid #222; min-width: 260px !important; max-width: 260px !important; }
     [data-testid="stSidebar"] .block-container { padding: 10px !important; }
     
-    /* Dropdown Correto */
+    /* Dropdown Escuro e Tags Laranja */
     div[data-baseweb="select"] > div { background-color: #111 !important; color: #FFF !important; border: 1px solid #333 !important; }
     div[data-baseweb="popover"] ul { background-color: #111 !important; }
     div[data-baseweb="popover"] li { color: #FFF !important; font-size: 14px; }
     div[data-baseweb="popover"] li:hover { background-color: #FF8C00 !important; color: #000 !important; }
     span[data-baseweb="tag"] { background-color: #FF8C00 !important; color: #000 !important; }
+    span[data-baseweb="tag"] span { color: #000 !important; font-weight: bold; }
 
-    /* Cards */
+    /* Cards de Métricas */
     .metric-card { background: linear-gradient(145deg, #121212, #0a0a0a); border: 1px solid #222; border-radius: 10px; padding: 15px; text-align: center; }
     .metric-title { font-size: 11px; color: #888 !important; text-transform: uppercase; font-weight: 700;}
     .metric-value { font-size: 22px; color: #FF8C00 !important; font-weight: 800; margin: 5px 0; }
     
-    .coin-card { background-color: #111; border: 1px solid #222; border-radius: 8px; padding: 15px; margin-bottom: 10px; }
+    /* Cards de Moedas */
+    .coin-card { background-color: #111; border: 1px solid #222; border-radius: 8px; padding: 15px; margin-bottom: 10px; transition: transform 0.2s; }
+    .coin-card:hover { transform: translateY(-2px); border-color: #FF8C00; }
     .coin-name { font-weight: 700; font-size: 15px; color: #FFF !important; }
     .coin-price { font-size: 20px; font-weight: 800; color: #FFF !important; }
     .coin-up { color: #1DB954 !important; font-weight: 600; font-size: 13px;}
@@ -59,17 +62,47 @@ if 'auto_update' not in st.session_state: st.session_state.auto_update = True
 # --- MAPEAMENTO ---
 opcoes_ativos = ["BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "XRPUSDT", "ADAUSDT", "DOGEUSDT", "LINKUSDT", "AVAXUSDT", "LTCUSDT", "DOTUSDT", "MATICUSDT", "SHIBUSDT", "TRXUSDT", "UNIUSDT", "ATOMUSDT", "ETCUSDT", "XLMUSDT", "BCHUSDT", "NEARUSDT"]
 mapa_moedas = {"BTCUSDT": "bitcoin", "ETHUSDT": "ethereum", "SOLUSDT": "solana", "BNBUSDT": "binancecoin", "XRPUSDT": "ripple", "ADAUSDT": "cardano", "DOGEUSDT": "dogecoin", "LINKUSDT": "chainlink", "AVAXUSDT": "avalanche-2", "LTCUSDT": "litecoin", "DOTUSDT": "polkadot", "MATICUSDT": "matic-network", "SHIBUSDT": "shiba-inu", "TRXUSDT": "tron", "UNIUSDT": "uniswap", "ATOMUSDT": "cosmos", "ETCUSDT": "ethereum-classic", "XLMUSDT": "stellar", "BCHUSDT": "bitcoin-cash", "NEARUSDT": "near"}
+mapa_inverso = {"bitcoin": "BTC", "ethereum": "ETH", "solana": "SOL", "binancecoin": "BNB", "ripple": "XRP", "cardano": "ADA", "dogecoin": "DOGE", "chainlink": "LINK", "avalanche-2": "AVAX", "litecoin": "LTC", "polkadot": "DOT", "matic-network": "MATIC", "shiba-inu": "SHIB", "tron": "TRX", "uniswap": "UNI", "cosmos": "ATOM", "ethereum-classic": "ETC", "stellar": "XLM", "bitcoin-cash": "BCH", "near": "NEAR"}
 
-@st.cache_data(ttl=10)
+# --- SISTEMA DE BUSCA DE PREÇOS COM FALLBACK (Dupla Camada) ---
+@st.cache_data(ttl=15)
 def get_market_data(coin_ids):
     if not coin_ids: return {}
+    result = {}
+    
+    # TENTATIVA 1: CoinGecko (Mais completo)
     try:
         ids = ",".join(coin_ids)
-        url = f"https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids={ids}&order=market_cap_desc&sparkline=false&price_change_percentage=24h"
+        url = f"https://api.coingecko.com/api/v3/simple/price?ids={ids}&vs_currencies=usd&include_24hr_change=true"
         res = requests.get(url, timeout=5)
-        if res.status_code == 200: return {item['id']: item for item in res.json()}
-        return {}
-    except: return {}
+        if res.status_code == 200:
+            data = res.json()
+            for cid, cdata in data.items():
+                result[cid] = {"current_price": cdata.get("usd", 0), "price_change_percentage_24h": cdata.get("usd_24h_change", 0)}
+            if result: return result
+    except Exception:
+        pass # Se falhar, vai para o plano B silenciosamente
+        
+    # TENTATIVA 2 (PLANO B): CryptoCompare (Quase impossível falhar)
+    try:
+        syms = [mapa_inverso.get(c, "") for c in coin_ids if c in mapa_inverso]
+        if syms:
+            url = f"https://min-api.cryptocompare.com/data/pricemultifull?fsyms={','.join(syms)}&tsyms=USD"
+            res = requests.get(url, timeout=5)
+            if res.status_code == 200:
+                data = res.json().get("RAW", {})
+                for cid in coin_ids:
+                    sym = mapa_inverso.get(cid)
+                    if sym and sym in data:
+                        result[cid] = {
+                            "current_price": data[sym]["USD"]["PRICE"],
+                            "price_change_percentage_24h": data[sym]["USD"]["CHANGEPCT24HOUR"]
+                        }
+                if result: return result
+    except Exception:
+        pass
+        
+    return {}
 
 # --- BARRA LATERAL ---
 with st.sidebar:
@@ -85,7 +118,7 @@ with st.sidebar:
     perda_maxima = st.number_input("Perda (USDT)", value=20.0, step=5.0)
     
     st.markdown("<hr style='margin: 5px 0; border-color: #333;'>", unsafe_allow_html=True)
-    st.session_state.auto_update = st.toggle("🔄 Auto-Update (10s)", value=True, help="Atualiza apenas os preços sem travar a tela.")
+    st.session_state.auto_update = st.toggle("🔄 Auto-Update", value=True, help="Atualiza os preços sem travar a tela.")
 
 # --- CABEÇALHO ---
 col_titulo, col_status_api = st.columns([3, 1])
@@ -135,11 +168,8 @@ with m4: st.markdown(f'<div class="metric-card"><div class="metric-title">Meta D
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# =====================================================================
-# FRAGMENTO PROFISSIONAL: Atualiza APENAS esta área a cada 10 segundos
-# =====================================================================
-# O run_every só é ativado se o usuário ligar o toggle na sidebar
-tempo_atualizacao = "10s" if st.session_state.auto_update else None
+# --- FRAGMENTO PROFISSIONAL DE COTAÇÕES ---
+tempo_atualizacao = "15s" if st.session_state.auto_update else None
 
 @st.fragment(run_every=tempo_atualizacao)
 def render_market_prices(ativos):
@@ -147,9 +177,10 @@ def render_market_prices(ativos):
     with col_title:
         st.markdown(f"<h4 style='margin-bottom:0;'>Mercado em Tempo Real <span style='font-size: 12px; color: #888; font-weight: 400;'>Atualizado às {datetime.now().strftime('%H:%M:%S')}</span></h4>", unsafe_allow_html=True)
     with col_btn:
+        # Botão de atualizar manual
         if st.button("🔄 Forçar Atualização", use_container_width=True):
             st.cache_data.clear()
-            st.rerun(scope="fragment") # Recarrega APENAS este bloco
+            st.rerun(scope="fragment") 
             
     if not ativos:
         st.info("Nenhum ativo selecionado. Use a barra lateral para buscar e adicionar moedas.")
@@ -169,13 +200,23 @@ def render_market_prices(ativos):
         
         seta = "▲" if change >= 0 else "▼"
         classe_delta = "coin-up" if change >= 0 else "coin-down"
+        
+        # Se o preço for 0 (API falhou), mostra um traço em vez de zero
+        if price == 0:
+            price_display = "---"
+            change_display = "Aguardando..."
+            classe_delta = "coin-name" # Cinza neutro
+            seta = ""
+        else:
+            price_display = f"$ {price:,.2f}"
+            change_display = f"{seta} {abs(change):.2f}% (24h)"
 
         with cols[col_idx]:
             st.markdown(f"""
             <div class="coin-card">
                 <div class="coin-name">{ativo}</div>
-                <div class="coin-price">$ {price:,.2f}</div>
-                <div class="{classe_delta}">{seta} {abs(change):.2f}% (24h)</div>
+                <div class="coin-price">{price_display}</div>
+                <div class="{classe_delta}">{change_display}</div>
             </div>
             """, unsafe_allow_html=True)
 
