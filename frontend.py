@@ -1,6 +1,5 @@
 import streamlit as st
 import requests
-import time
 
 # Configuração da página
 st.set_page_config(page_title="Crypto Trader", page_icon="📈", layout="wide")
@@ -33,46 +32,46 @@ api_url = "https://crypto-trader-zxt7.onrender.com/health"
 
 with st.spinner("Verificando motor..."):
     try:
-        # Aumentamos o tempo de espera para 30 segundos, caso o Render esteja dormindo
-        response = requests.get(api_url, timeout=30)
+        headers = {'User-Agent': 'Mozilla/5.0'}
+        response = requests.get(api_url, headers=headers, timeout=30)
         if response.status_code == 200:
             data = response.json()
             st.success("✅ Motor Online! Banco de Dados e Cache conectados.")
             st.json(data)
         else:
-            st.warning(f"⚠️ Motor respondeu, mas com código de erro: {response.status_code}. Pode estar acordando.")
+            st.warning(f"⚠️ O motor respondeu com código {response.status_code}. Se o erro persistir, pode ser que o Render esteja reiniciando.")
     except requests.exceptions.Timeout:
-        st.warning("⚠️ O motor está demorando muito para responder (pode estar acordando). Clique em 'Atualizar' abaixo.")
+        st.warning("⚠️ O motor está demorando para responder (pode estar acordando). Clique em 'Atualizar Dados' abaixo.")
     except Exception as e:
         st.error(f"❌ Erro ao conectar no motor: {e}")
 
 st.divider()
 
-# Cotações (Usando CoinGecko para não ser bloqueado)
+# Cotações (Usando CryptoCompare - mais estável e sem bloqueio)
 st.subheader("Cotações em Tempo Real (Mercado)")
-st.write("Preços puxados diretamente da API pública CoinGecko.")
+st.write("Preços puxados diretamente da API pública CryptoCompare.")
 
-# Mapeamento das moedas
-coins = {
-    "BTCUSDT (Bitcoin)": "bitcoin",
-    "ETHUSDT (Ethereum)": "ethereum",
-    "SOLUSDT (Solana)": "solana",
-    "BNBUSDT (Binance Coin)": "binancecoin",
-    "XRPUSDT (Ripple)": "ripple"
+symbols = ["BTC", "ETH", "SOL", "BNB", "XRP"]
+labels = {
+    "BTC": "BTCUSDT (Bitcoin)",
+    "ETH": "ETHUSDT (Ethereum)",
+    "SOL": "SOLUSDT (Solana)",
+    "BNB": "BNBUSDT (Binance Coin)",
+    "XRP": "XRPUSDT (Ripple)"
 }
 
-cols = st.columns(len(coins))
+cols = st.columns(len(symbols))
 
 try:
-    # Puxa todos os preços de uma vez (mais rápido)
-    url = "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana,binancecoin,ripple&vs_currencies=usd"
+    # Puxa todos os preços de uma vez
+    url = f"https://min-api.cryptocompare.com/data/pricemulti?fsyms={','.join(symbols)}&tsyms=USD"
     res = requests.get(url, timeout=10)
     prices = res.json()
     
-    for i, (label, coin_id) in enumerate(coins.items()):
-        price = prices.get(coin_id, {}).get("usd", 0)
+    for i, symbol in enumerate(symbols):
+        price = prices.get(symbol, {}).get("USD", 0)
         with cols[i]:
-            st.metric(label=label, value=f"$ {price:,.2f}")
+            st.metric(label=labels[symbol], value=f"$ {price:,.2f}")
 except Exception as e:
     st.error(f"Erro ao puxar preços: {e}")
 
