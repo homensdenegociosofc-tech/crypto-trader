@@ -6,31 +6,23 @@ from datetime import datetime
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Crypto Trader Pro", page_icon="⚡", layout="wide", initial_sidebar_state="expanded")
 
-# --- CSS PREMIUM ---
+# --- CSS PREMIUM (APENAS PARA CARDS E BOTÕES) ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
     html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
-    .stApp { background-color: #050505; }
     
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
     [data-testid="stSidebarNav"] {display: none;}
 
-    h1, h2, h3, h4, p, span, div { color: #E0E0E0 !important; }
-    h1 { color: #FF8C00 !important; font-weight: 800; font-size: 2rem !important; margin-bottom: 0px !important;}
-    
     /* Sidebar Compacta */
-    [data-testid="stSidebar"] { background-color: #0c0c0c; border-right: 1px solid #222; min-width: 260px !important; max-width: 260px !important; }
+    [data-testid="stSidebar"] { min-width: 260px !important; max-width: 260px !important; }
     [data-testid="stSidebar"] .block-container { padding: 10px !important; }
     
-    /* Dropdown Escuro e Tags Laranja */
-    div[data-baseweb="select"] > div { background-color: #111 !important; color: #FFF !important; border: 1px solid #333 !important; }
-    div[data-baseweb="popover"] ul { background-color: #111 !important; }
-    div[data-baseweb="popover"] li { color: #FFF !important; font-size: 14px; }
-    div[data-baseweb="popover"] li:hover { background-color: #FF8C00 !important; color: #000 !important; }
-    span[data-baseweb="tag"] { background-color: #FF8C00 !important; color: #000 !important; }
+    /* Tags Laranjas da Sidebar */
+    span[data-baseweb="tag"] { background-color: #FF8C00 !important; color: #000 !important; border-radius: 4px; }
     span[data-baseweb="tag"] span { color: #000 !important; font-weight: bold; }
 
     /* Cards de Métricas */
@@ -64,13 +56,12 @@ opcoes_ativos = ["BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "XRPUSDT", "ADAUSDT
 mapa_moedas = {"BTCUSDT": "bitcoin", "ETHUSDT": "ethereum", "SOLUSDT": "solana", "BNBUSDT": "binancecoin", "XRPUSDT": "ripple", "ADAUSDT": "cardano", "DOGEUSDT": "dogecoin", "LINKUSDT": "chainlink", "AVAXUSDT": "avalanche-2", "LTCUSDT": "litecoin", "DOTUSDT": "polkadot", "MATICUSDT": "matic-network", "SHIBUSDT": "shiba-inu", "TRXUSDT": "tron", "UNIUSDT": "uniswap", "ATOMUSDT": "cosmos", "ETCUSDT": "ethereum-classic", "XLMUSDT": "stellar", "BCHUSDT": "bitcoin-cash", "NEARUSDT": "near"}
 mapa_inverso = {"bitcoin": "BTC", "ethereum": "ETH", "solana": "SOL", "binancecoin": "BNB", "ripple": "XRP", "cardano": "ADA", "dogecoin": "DOGE", "chainlink": "LINK", "avalanche-2": "AVAX", "litecoin": "LTC", "polkadot": "DOT", "matic-network": "MATIC", "shiba-inu": "SHIB", "tron": "TRX", "uniswap": "UNI", "cosmos": "ATOM", "ethereum-classic": "ETC", "stellar": "XLM", "bitcoin-cash": "BCH", "near": "NEAR"}
 
-# --- SISTEMA DE BUSCA DE PREÇOS COM FALLBACK (Dupla Camada) ---
+# --- SISTEMA DE PREÇOS COM DUPLA CAMADA ---
 @st.cache_data(ttl=15)
 def get_market_data(coin_ids):
     if not coin_ids: return {}
     result = {}
-    
-    # TENTATIVA 1: CoinGecko (Mais completo)
+    # TENTATIVA 1: CoinGecko
     try:
         ids = ",".join(coin_ids)
         url = f"https://api.coingecko.com/api/v3/simple/price?ids={ids}&vs_currencies=usd&include_24hr_change=true"
@@ -80,10 +71,9 @@ def get_market_data(coin_ids):
             for cid, cdata in data.items():
                 result[cid] = {"current_price": cdata.get("usd", 0), "price_change_percentage_24h": cdata.get("usd_24h_change", 0)}
             if result: return result
-    except Exception:
-        pass # Se falhar, vai para o plano B silenciosamente
+    except Exception: pass
         
-    # TENTATIVA 2 (PLANO B): CryptoCompare (Quase impossível falhar)
+    # TENTATIVA 2: CryptoCompare
     try:
         syms = [mapa_inverso.get(c, "") for c in coin_ids if c in mapa_inverso]
         if syms:
@@ -94,14 +84,9 @@ def get_market_data(coin_ids):
                 for cid in coin_ids:
                     sym = mapa_inverso.get(cid)
                     if sym and sym in data:
-                        result[cid] = {
-                            "current_price": data[sym]["USD"]["PRICE"],
-                            "price_change_percentage_24h": data[sym]["USD"]["CHANGEPCT24HOUR"]
-                        }
+                        result[cid] = {"current_price": data[sym]["USD"]["PRICE"], "price_change_percentage_24h": data[sym]["USD"]["CHANGEPCT24HOUR"]}
                 if result: return result
-    except Exception:
-        pass
-        
+    except Exception: pass
     return {}
 
 # --- BARRA LATERAL ---
@@ -118,7 +103,7 @@ with st.sidebar:
     perda_maxima = st.number_input("Perda (USDT)", value=20.0, step=5.0)
     
     st.markdown("<hr style='margin: 5px 0; border-color: #333;'>", unsafe_allow_html=True)
-    st.session_state.auto_update = st.toggle("🔄 Auto-Update", value=True, help="Atualiza os preços sem travar a tela.")
+    st.session_state.auto_update = st.toggle("🔄 Auto-Update", value=True)
 
 # --- CABEÇALHO ---
 col_titulo, col_status_api = st.columns([3, 1])
@@ -150,7 +135,6 @@ with col_btn_start:
 with col_btn_stop:
     if st.button("🚨 EMERGÊNCIA", type="secondary", use_container_width=True):
         st.session_state.robo_rodando = False
-        st.error("KILL SWITCH ACIONADO!")
         st.rerun()
 with col_info:
     if st.session_state.robo_rodando:
@@ -168,7 +152,7 @@ with m4: st.markdown(f'<div class="metric-card"><div class="metric-title">Meta D
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# --- FRAGMENTO PROFISSIONAL DE COTAÇÕES ---
+# --- FRAGMENTO DE COTAÇÕES ---
 tempo_atualizacao = "15s" if st.session_state.auto_update else None
 
 @st.fragment(run_every=tempo_atualizacao)
@@ -177,13 +161,12 @@ def render_market_prices(ativos):
     with col_title:
         st.markdown(f"<h4 style='margin-bottom:0;'>Mercado em Tempo Real <span style='font-size: 12px; color: #888; font-weight: 400;'>Atualizado às {datetime.now().strftime('%H:%M:%S')}</span></h4>", unsafe_allow_html=True)
     with col_btn:
-        # Botão de atualizar manual
         if st.button("🔄 Forçar Atualização", use_container_width=True):
             st.cache_data.clear()
             st.rerun(scope="fragment") 
             
     if not ativos:
-        st.info("Nenhum ativo selecionado. Use a barra lateral para buscar e adicionar moedas.")
+        st.info("Nenhum ativo selecionado.")
         return
 
     ids_para_buscar = [mapa_moedas[a] for a in ativos if a in mapa_moedas]
@@ -201,11 +184,10 @@ def render_market_prices(ativos):
         seta = "▲" if change >= 0 else "▼"
         classe_delta = "coin-up" if change >= 0 else "coin-down"
         
-        # Se o preço for 0 (API falhou), mostra um traço em vez de zero
         if price == 0:
             price_display = "---"
             change_display = "Aguardando..."
-            classe_delta = "coin-name" # Cinza neutro
+            classe_delta = "coin-name"
             seta = ""
         else:
             price_display = f"$ {price:,.2f}"
@@ -220,7 +202,6 @@ def render_market_prices(ativos):
             </div>
             """, unsafe_allow_html=True)
 
-# Chama a função do fragmento
 render_market_prices(ativos_selecionados)
 
 # --- ABAS ---
