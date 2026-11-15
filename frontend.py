@@ -1,5 +1,6 @@
 import streamlit as st
 import requests
+import time
 
 # Configuração da página
 st.set_page_config(page_title="Crypto Trader", page_icon="📈", layout="wide")
@@ -7,15 +8,8 @@ st.set_page_config(page_title="Crypto Trader", page_icon="📈", layout="wide")
 # INJEÇÃO DO TEMA PRETO E LARANJA (CSS)
 st.markdown("""
     <style>
-    /* Fundo preto */
-    .stApp {
-        background-color: #0a0a0a;
-    }
-    /* Textos em laranja */
-    h1, h2, h3, p, span, div {
-        color: #FF8C00 !important;
-    }
-    /* Botões laranja */
+    .stApp { background-color: #0a0a0a; }
+    h1, h2, h3, p, span, div { color: #FF8C00 !important; }
     .stButton>button {
         background-color: #FF8C00;
         color: black;
@@ -24,10 +18,7 @@ st.markdown("""
         border-radius: 5px;
         padding: 10px 24px;
     }
-    .stButton>button:hover {
-        background-color: #FFA500;
-        color: black;
-    }
+    .stButton>button:hover { background-color: #FFA500; color: black; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -38,42 +29,53 @@ st.divider()
 
 # Verificando o Motor (API)
 st.subheader("Status do Motor (API)")
-api_url = "https://crypto-trader-zxt7.onrender.com/health" # Link do seu motor
+api_url = "https://crypto-trader-zxt7.onrender.com/health"
 
-try:
-    response = requests.get(api_url, timeout=10)
-    if response.status_code == 200:
-        data = response.json()
-        if data.get("banco_de_dados") == "conectado com sucesso":
+with st.spinner("Verificando motor..."):
+    try:
+        # Aumentamos o tempo de espera para 30 segundos, caso o Render esteja dormindo
+        response = requests.get(api_url, timeout=30)
+        if response.status_code == 200:
+            data = response.json()
             st.success("✅ Motor Online! Banco de Dados e Cache conectados.")
+            st.json(data)
         else:
-            st.warning("⚠️ Motor online, mas com erro nas conexões.")
-        st.json(data)
-    else:
-        st.error("❌ Motor respondeu com erro.")
-except Exception as e:
-    st.warning(f"⚠️ Motor dormindo. Ele vai acordar em alguns segundos, aguarde...")
-    st.error(f"Detalhe técnico: {e}")
+            st.warning(f"⚠️ Motor respondeu, mas com código de erro: {response.status_code}. Pode estar acordando.")
+    except requests.exceptions.Timeout:
+        st.warning("⚠️ O motor está demorando muito para responder (pode estar acordando). Clique em 'Atualizar' abaixo.")
+    except Exception as e:
+        st.error(f"❌ Erro ao conectar no motor: {e}")
 
 st.divider()
 
-# Cotações da Binance
-st.subheader("Cotações em Tempo Real (Binance)")
-st.write("Preços puxados diretamente da API pública da Binance.")
+# Cotações (Usando CoinGecko para não ser bloqueado)
+st.subheader("Cotações em Tempo Real (Mercado)")
+st.write("Preços puxados diretamente da API pública CoinGecko.")
 
-symbols = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT"]
-cols = st.columns(len(symbols))
+# Mapeamento das moedas
+coins = {
+    "BTCUSDT (Bitcoin)": "bitcoin",
+    "ETHUSDT (Ethereum)": "ethereum",
+    "SOLUSDT (Solana)": "solana",
+    "BNBUSDT (Binance Coin)": "binancecoin",
+    "XRPUSDT (Ripple)": "ripple"
+}
 
-for i, symbol in enumerate(symbols):
-    try:
-        # Puxa o preço direto da Binance
-        res = requests.get(f"https://api.binance.com/api/v3/ticker/price?symbol={symbol}")
-        price = float(res.json()["price"])
+cols = st.columns(len(coins))
+
+try:
+    # Puxa todos os preços de uma vez (mais rápido)
+    url = "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana,binancecoin,ripple&vs_currencies=usd"
+    res = requests.get(url, timeout=10)
+    prices = res.json()
+    
+    for i, (label, coin_id) in enumerate(coins.items()):
+        price = prices.get(coin_id, {}).get("usd", 0)
         with cols[i]:
-            st.metric(label=symbol, value=f"$ {price:,.2f}")
-    except:
-        with cols[i]:
-            st.metric(label=symbol, value="Erro")
+            st.metric(label=label, value=f"$ {price:,.2f}")
+except Exception as e:
+    st.error(f"Erro ao puxar preços: {e}")
 
-if st.button("🔄 Atualizar Preços"):
+st.divider()
+if st.button("🔄 Atualizar Dados"):
     st.rerun()
