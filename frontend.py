@@ -6,22 +6,18 @@ from datetime import datetime
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Crypto Trader Pro", page_icon="⚡", layout="wide", initial_sidebar_state="expanded")
 
-# --- INJEÇÃO CSS GLOBAL (FORÇA O TEMA ESCURO EM TUDO) ---
+# --- INJEÇÃO CSS GLOBAL E CORREÇÃO DO MENU MULTISELECT ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
     
-    /* Fontes Globais */
+    /* Fontes e Fundo Geral */
     html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
-
-    /* FORÇANDO FUNDO ESCURO E TEXTOS CLAROS NO APP INTEIRO */
     .stApp, [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
         background-color: #050505 !important;
         color: #E0E0E0 !important;
     }
-    h1, h2, h3, h4, p, span, div, label {
-        color: #E0E0E0 !important;
-    }
+    h1, h2, h3, h4, p, span, div, label { color: #E0E0E0 !important; }
     h1 { color: #FF8C00 !important; font-weight: 800; font-size: 2rem !important; margin-bottom: 0px !important;}
     
     /* Esconder menus do Streamlit */
@@ -36,37 +32,59 @@ st.markdown("""
         min-width: 260px !important; 
         max-width: 260px !important; 
     }
-    [data-testid="stSidebar"] .block-container { padding: 10px !important; }
     
-    /* CORRIGINDO O MENU SUSPENSO (DROPDOWN) - AGORA FICA ESCURO E LEGÍVEL */
-    div[data-baseweb="select"] > div {
+    /* ================================================================= */
+    /* CORREÇÃO CIRÚRGICA DO MENU DE ATIVOS (MULTISELECT) */
+    /* ================================================================= */
+    
+    /* 1. A caixa de fundo onde ficam as tags selecionadas */
+    div[data-testid="stMultiSelect"] > div > div {
         background-color: #111 !important;
-        color: #FFF !important;
         border: 1px solid #333 !important;
     }
-    /* A lista que abre */
-    ul[data-testid="stSelectboxVirtualDropdown"], div[data-baseweb="popover"] > div > ul {
+
+    /* 2. As tags (ex: BTCUSDT) - Laranja com texto preto */
+    span[data-baseweb="tag"] {
+        background-color: #FF8C00 !important;
+        color: #000000 !important;
+        border-radius: 4px !important;
+    }
+    span[data-baseweb="tag"] span {
+        color: #000000 !important;
+        font-weight: bold !important;
+    }
+    span[data-baseweb="tag"] svg {
+        fill: #000000 !important; /* O 'X' de deletar fica preto */
+    }
+
+    /* 3. O menu que abre (Popover) - Fundo escuro */
+    div[data-baseweb="popover"] {
+        background-color: #111 !important;
+        border: 1px solid #333 !important;
+        border-radius: 6px !important;
+    }
+    div[data-baseweb="popover"] > div {
         background-color: #111 !important;
     }
-    /* Os itens da lista */
-    li[role="option"], div[data-baseweb="popover"] li {
+
+    /* 4. A lista de opções (Select all, BNBUSDT, etc) */
+    ul[data-testid="stSelectboxVirtualDropdown"], 
+    div[data-baseweb="popover"] ul {
+        background-color: #111 !important;
+    }
+    div[data-baseweb="popover"] li {
         background-color: #111 !important;
         color: #E0E0E0 !important;
     }
-    li[role="option"]:hover, div[data-baseweb="popover"] li:hover {
+
+    /* 5. Efeito ao passar o mouse nas opções - Fica laranja */
+    div[data-baseweb="popover"] li:hover {
         background-color: #FF8C00 !important;
-        color: #000 !important;
     }
-    /* As tags (bolinhas com o nome da moeda) */
-    span[data-baseweb="tag"] { 
-        background-color: #FF8C00 !important; 
-        color: #000 !important; 
-        border-radius: 4px; 
+    div[data-baseweb="popover"] li:hover div {
+        color: #000000 !important;
     }
-    span[data-baseweb="tag"] span { 
-        color: #000 !important; 
-        font-weight: bold; 
-    }
+    /* ================================================================= */
 
     /* Cards de Métricas */
     .metric-card { background: linear-gradient(145deg, #121212, #0a0a0a); border: 1px solid #222; border-radius: 10px; padding: 15px; text-align: center; }
@@ -85,9 +103,7 @@ st.markdown("""
     .stButton>button { background-color: #121212 !important; color: #FF8C00 !important; border: 1px solid #FF8C00 !important; font-weight: 600; border-radius: 6px; font-size: 14px; transition: all 0.3s; }
     .stButton>button:hover { background-color: #FF8C00 !important; color: #000 !important; box-shadow: 0 0 10px rgba(255,140,0,0.4); }
     
-    /* Botão Iniciar */
     div[data-testid="stButton"] button[kind="primary"] { background: linear-gradient(90deg, #1DB954, #169c46) !important; color: white !important; border: none !important; }
-    /* Botão Emergência */
     div[data-testid="stButton"] button[kind="secondary"] { background: linear-gradient(90deg, #E50914, #b80710) !important; color: white !important; border: none !important; }
     </style>
     """, unsafe_allow_html=True)
@@ -204,7 +220,6 @@ def render_market_prices(ativos):
     with col_title:
         st.markdown(f"<h4 style='margin-bottom:0; color:#E0E0E0 !important;'>Mercado em Tempo Real <span style='font-size: 12px; color: #888; font-weight: 400;'>Atualizado às {datetime.now().strftime('%H:%M:%S')}</span></h4>", unsafe_allow_html=True)
     with col_btn:
-        # Voltando o botão para o estilo escuro laranja (sem o type='secondary' que o deixava vermelho)
         if st.button("🔄 Forçar Atualização", use_container_width=True):
             st.cache_data.clear()
             st.rerun(scope="fragment") 
